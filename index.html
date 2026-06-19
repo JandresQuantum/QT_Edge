@@ -767,13 +767,13 @@
             if(donut) donut.style.background = `conic-gradient(var(--accent-cyan) 0% ${winRate}%, #2a2a36 ${winRate}% 100%)`;
         }
 
-        function drawEquityCurve(points) {
+                function drawEquityCurve(points) {
             const canvas = document.getElementById('equityChart');
             if(!canvas) return;
             const ctx = canvas.getContext('2d');
             const container = canvas.parentElement;
             
-            // Ajustar resoluciones reales
+            // Ajustar resoluciones reales para pantallas retina/móvil
             const width = container.clientWidth;
             const height = container.clientHeight;
             canvas.width = width * window.devicePixelRatio;
@@ -789,38 +789,57 @@
                 return;
             }
 
-            const paddingLeft = 10;
-            const paddingRight = 10;
-            const paddingTop = 15;
-            const paddingBottom = 15;
+            // Espaciado estratégico para abrir espacio a las etiquetas de los ejes
+            const paddingLeft = 55;   // Espacio izquierdo para los montos en USD
+            const paddingRight = 15;  // Margen derecho de seguridad
+            const paddingTop = 15;    // Margen superior
+            const paddingBottom = 25; // Espacio inferior para fechas/meses
+            
             const graphWidth = width - paddingLeft - paddingRight;
             const graphHeight = height - paddingTop - paddingBottom;
 
-            const minVal = Math.min(...points) * 0.999;
-            const maxVal = Math.max(...points) * 1.001;
-            const valRange = maxVal - minVal === 0 ? 100 : maxVal - minVal;
+            // Encontrar extremos del capital con margen de holgura visual
+            const minVal = Math.min(...points);
+            const maxVal = Math.max(...points);
+            const valRange = maxVal - minVal === 0 ? 100 : (maxVal - minVal) * 1.1;
+            const centerVal = minVal + (maxVal - minVal) / 2;
 
-            // Dibujar Líneas Guía de Fondo (Línea Base del balance inicial)
-            ctx.strokeStyle = '#222230';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            const yInitial = paddingTop + graphHeight - ((state.initialBalance - minVal) / valRange) * graphHeight;
-            ctx.moveTo(paddingLeft, yInitial);
-            ctx.lineTo(paddingLeft + graphWidth, yInitial);
-            ctx.stroke();
-            ctx.setLineDash([]); // Resetear line dash
+            // 1. DIBUJAR EJES Y LÍNEAS GUÍA DE PRECIO (Eje Y - Izquierda)
+            ctx.fillStyle = '#616175'; // Color de fuente para los datos numéricos
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
 
-            // Mapear los puntos del eje X e Y
+            // Array de niveles de precios a renderizar (Máximo, Medio y Mínimo)
+            const priceLevels = [maxVal, centerVal, minVal];
+            priceLevels.forEach(level => {
+                const yPos = paddingTop + graphHeight - ((level - minVal) / valRange) * graphHeight;
+                
+                // Formatear el precio abreviado (Ej: $10.1k o el número directo)
+                const formattedPrice = '$' + level.toLocaleString('en-US', {maximumFractionDigits: 0});
+                ctx.fillText(formattedPrice, paddingLeft - 8, yPos);
+
+                // Línea discontinua horizontal para cada nivel de precio
+                ctx.strokeStyle = 'rgba(34, 34, 48, 0.6)';
+                ctx.lineWidth = 0.8;
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath();
+                ctx.moveTo(paddingLeft, yPos);
+                ctx.lineTo(paddingLeft + graphWidth, yPos);
+                ctx.stroke();
+            });
+            ctx.setLineDash([]); // Resetear patrón discontinuo
+
+            // Mapear matemáticamente los puntos del balance al espacio del canvas
             const coords = points.map((p, index) => {
                 const x = paddingLeft + (index / (points.length - 1)) * graphWidth;
                 const y = paddingTop + graphHeight - ((p - minVal) / valRange) * graphHeight;
                 return {x, y};
             });
 
-            // Dibujar Gradiente del Área (Verde Limón Neón Translúcido)
+            // 2. DIBUJAR GRADIENTE DEL ÁREA (Verde Limón Neón Translúcido)
             const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
-            gradient.addColorStop(0, 'rgba(57, 255, 20, 0.22)');
+            gradient.addColorStop(0, 'rgba(57, 255, 20, 0.18)');
             gradient.addColorStop(1, 'rgba(57, 255, 20, 0.0)');
 
             ctx.fillStyle = gradient;
@@ -831,9 +850,9 @@
             ctx.closePath();
             ctx.fill();
 
-            // Dibujar Línea de la curva (Verde Limón Neón Puro)
+            // 3. DIBUJAR LÍNEA DE LA CURVA PRINCIPAL (Verde Limón Neón)
             ctx.strokeStyle = '#39ff14';
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 2.2;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.beginPath();
@@ -841,7 +860,35 @@
             coords.forEach(c => ctx.lineTo(c.x, c.y));
             ctx.stroke();
 
-            // Dibujar último punto resaltado (Blanco con brillo verde limón)
+            // 4. DIBUJAR MARCAS DE TIEMPO / AGROPACIÓN DINÁMICA (Eje X - Abajo)
+            ctx.fillStyle = '#616175';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            
+            if (state.trades && state.trades.length > 0) {
+                // Obtener fecha inicial (último del array original porque invertimos el orden)
+                const firstTradeDate = state.trades[state.trades.length - 1].timestamp;
+                const lastTradeDate = state.trades[0].timestamp;
+                
+                // Extraer el mes/semana base de manera compacta para que quepa en el celular
+                const startLabel = firstTradeDate.substring(0, 5); // Ej: 15/06
+                const endLabel = lastTradeDate.substring(0, 5);   // Ej: 19/06
+
+                // Etiqueta de inicio de racha (Izquierda abajo)
+                ctx.fillText(startLabel, paddingLeft, height - paddingBottom + 6);
+                
+                // Etiqueta de estado actual o mes vigente (Derecha abajo)
+                ctx.fillText(endLabel, paddingLeft + graphWidth, height - paddingBottom + 6);
+
+                // Si hay suficientes datos, ponemos una marca central para delimitar el avance
+                if (state.trades.length > 4) {
+                    const midIndex = Math.floor(state.trades.length / 2);
+                    const midLabel = state.trades[midIndex].timestamp.substring(0, 5);
+                    ctx.fillText(midLabel, paddingLeft + (graphWidth / 2), height - paddingBottom + 6);
+                }
+            }
+
+            // 5. DIBUJAR ÚLTIMO PUNTO RESALTADO (Blanco con destello Neón)
             const last = coords[coords.length - 1];
             ctx.fillStyle = '#ffffff';
             ctx.shadowBlur = 8;
@@ -849,8 +896,9 @@
             ctx.beginPath();
             ctx.arc(last.x, last.y, 4, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.shadowBlur = 0; // Resetear sombras
-        }
+            ctx.shadowBlur = 0; // Resetear sombras para optimizar rendimiento
+                }
+        
       function createLogItemDOM(t) {
             const item = document.createElement('div');
             item.className = 'log-item';
