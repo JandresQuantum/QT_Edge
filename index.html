@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Trades Edge</title>
+    <style>
+        /* --- CONFIGURACIÓN BASE HUD TERMINAL --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        body {
+            background-color: #030708; /* Negro profundo puro (Imagen 43513.jpg) */
+            color: #00e5ff; /* Texto base en cian eléctrico */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background-color: #000000;
+            min-height: 100vh;
+            border-left: 1px solid rgba(0, 229, 255, 0.2);
+            border-right: 1px solid rgba(0, 229, 255, 0.2);
+            padding-bottom: 90px;
+            position: relative;
+        }
+
+        /* --- CABECERA DINÁMICA --- */
+        header {
+            background-color: #000000;
+            padding: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 2px solid #00e5ff;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-banner {
+            width: 100%;
+            max-width: 460px;
+            aspect-ratio: 1500 / 1000;
+            background: url('43515.png') no-repeat center center;
+            background-size: contain;
+        }
+
+        /* --- CONTENEDORES CON BORDES TECH --- */
+        .section-container {
+            background: rgba(0, 229, 255, 0.02);
+            border: 1px solid rgba(0, 229, 255, 0.25); /* Bordes delgados estilo radar (Imagen 43513.jpg) */
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px;
+            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.05);
+            position: relative;
+        }
+
+        /* Detalle de nodo naranja en las esquinas superiores (Imagen 43514.jpg) */
+        .section-container::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 15px;
+            width: 35px;
+            height: 2px;
+            background: #ff9100; /* Acento Amber */
+        }
+
+        h2, h3 {
+            color: #ff9100; /* Títulos en Naranja Amber (Imagen 43514.jpg) */
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            text-shadow: 0 0 8px rgba(255, 145, 0, 0.3);
+        }
+
+        /* --- MÉTRICAS Y DONA --- */
+        .stats-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 10px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .winrate-value {
+            position: absolute;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffea00; /* Amarillo eléctrico de métrica crítica (Imagen 43513.jpg) */
+            text-shadow: 0 0 10px rgba(255, 234, 0, 0.6);
+        }
+
+        .legend-block {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        /* --- CALENDARIO OPERATIVO --- */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        .day-box {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            border-radius: 3px;
+            padding: 6px 2px;
+            text-align: center;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 50px;
+        }
+
+        .day-box .day-num {
+            color: rgba(0, 229, 255, 0.6);
+        }
+
+        .day-box .day-val {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Estados del calendario con brillo neón sutil */
+        .day-box.profit {
+            border-color: #00ff66;
+            background: rgba(0, 255, 102, 0.08);
+            box-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
+        }
+        .day-box.profit .day-num, .day-box.profit .day-val { color: #00ff66; font-weight: bold; }
+
+        .day-box.loss {
+            border-color: #ff3366;
+            background: rgba(255, 51, 102, 0.08);
+            box-shadow: 0 0 8px rgba(255, 51, 102, 0.2);
+        }
+        .day-box.loss .day-num, .day-box.loss .day-val { color: #ff3366; font-weight: bold; }
+
+        /* --- TERMINAL LOGS --- */
+        .log-card {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(0, 229, 255, 0.15);
+            border-left: 3px solid #00e5ff;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .log-card.sell { border-left-color: #ff3366; }
+        .log-card.buy { border-left-color: #00ff66; }
+
+        .log-left { display: flex; flex-direction: column; gap: 3px; }
+        .log-right { text-align: right; display: flex; flex-direction: column; gap: 3px; }
+
+        .asset-title { font-weight: bold; color: #ffffff; text-transform: uppercase; }
+        .strategy-tag { color: rgba(0, 229, 255, 0.6); font-size: 9px; }
+        .pnl-value { font-weight: bold; font-size: 12px; }
+        .pnl-value.plus { color: #00ff66; }
+        .pnl-value.minus { color: #ff3366; }
+
+        /* --- VISTAS CONTROL --- */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* --- NAVEGACIÓN INFERIOR --- */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: #030708;
+            border-top: 2px solid #00e5ff;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            box-shadow: 0 -5px 15px rgba(0, 229, 255, 0.15);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: rgba(0, 229, 255, 0.4);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .nav-item.active {
+            color: #ff9100;
+            text-shadow: 0 0 8px rgba(255, 145, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- HEADER ENLÍNEADO A TU BANNER CYBERPUNK -->
+        <header>
+            <div class="header-banner"></div>
+        </header>
+
+        <!-- SECCIÓN 1: DASHBOARD PRINCIPAL -->
+        <main id="view-dashboard" class="view-section active">
+            
+            <!-- PANEL RATIO DE EFECTIVIDAD -->
+            <div class="section-container">
+                <h2>Rendimiento General :: Win Rate</h2>
+                <div class="stats-block">
+                    <div class="chart-wrapper">
+                        <!-- Canvas simplificado para la dona del 75% -->
+                        <canvas id="winLossChart" width="100" height="100"></canvas>
+                        <div class="winrate-value" id="winRateDisplay">75%</div>
+                    </div>
+                    <div class="legend-block">
+                        <div class="legend-item">
+                            <div class="dot" style="background: #00e5ff;"></div>
+                            <span>Ganados (WIN): <span id="winCount" class="highlight-value">3</span></span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="dot" style="background: #ff3366;"></div>
+                            <span>Perdidos (LOSS): <span id="lossCount">1</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CALENDARIO OPERATIVO INTELIGENTE -->
+            <div class="section-container">
+                <h2>Calendario Operativo Diario</h2>
+                <div class="calendar-grid" id="ftmoCalendar">
+                    <!-- Los días se generan dinámicamente con JavaScript -->
+                </div>
+            </div>
+
+            <!-- REGISTRO RECIENTE EN TIEMPO REAL -->
+            <div class="section-container">
+                <h2>Terminal Logs :: Recent Entries</h2>
+                <div id="recentLogsContainer">
+                    <!-- Se inyectan de forma dinámica -->
+                </div>
+            </div>
+        </main>
+
+        <!-- VISTAS ADICIONALES (Para navegación limpia) -->
+        <div id="view-historial" class="view-section">
+            <div class="section-container">
+                <h2>Historial Completo de Operaciones</h2>
+                <div id="fullHistoryContainer"></div>
+            </div>
+        </div>
+
+        <div id="view-nuevo" class="view-section">
+            <div class="section-container">
+                <h2>Formulario Terminal de Entrada</h2>
+                <p style="font-size: 11px; color: rgba(0,229,255,0.5);">[Modo edición suspendido temporalmente por el operador]</p>
+            </div>
+        </div>
+
+        <!-- MENU DE COMANDOS INFERIOR -->
+        <nav class="nav-bar">
+            <button class="nav-item active" onclick="switchView('dashboard', this)">
+                <span style="font-size: 14px;">📊</span>DASHBOARD
+            </button>
+            <button class="nav-item" onclick="switchView('historial', this)">
+                <span style="font-size: 14px;">📜</span>HISTORIAL
+            </button>
+            <button class="nav-item" onclick="switchView('nuevo', this)">
+                <span style="font-size: 14px;">➕</span>NUEVO TRADE
+            </button>
+        </nav>
+    </div>
+
+    <!-- --- LÓGICA GENERAL CENTRALIZADA --- -->
+    <script>
+        // Base de datos integrada de operaciones simulando tus registros de junio 2026
+        const tradeDatabase = [
+            { id: 1, type: 'SELL', asset: 'US30.cash', date: '19/6/2026', session: 'NY AM', strategy: 'ORB (Opening Range)', pnl: 4.13 },
+            { id: 2, type: 'BUY', asset: 'NAS100', date: '19/6/2026', session: 'NY AM', strategy: 'ORB (Opening Range)', pnl: 0.34 },
+            { id: 3, type: 'BUY', asset: 'XAUUSD', date: '19/6/2026', session: 'NY AM', strategy: 'Silver Bullet', pnl: 102.53 },
+            { id: 4, type: 'SELL', asset: 'NAS100', date: '18/6/2026', session: 'NY AM', strategy: 'Silver Bullet', pnl: -25.00 }
+        ];
+
+        // Cambiar entre pantallas de la interfaz desde el menú inferior
+        function switchView(viewId, element) {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // Renderizar y calcular el estado del calendario dinámico de 30 días
+        function renderCyberCalendar() {
+            const calendarEl = document.getElementById('ftmoCalendar');
+            calendarEl.innerHTML = '';
+
+            // Mapear ganancias y pérdidas por día específico del mes de junio
+            const dailyStats = {};
+            tradeDatabase.forEach(trade => {
+                const dayNum = parseInt(trade.date.split('/')[0]);
+                if (!dailyStats[dayNum]) dailyStats[dayNum] = 0;
+                dailyStats[dayNum] += trade.pnl;
+            });
+
+            for (let i = 1; i <= 30; i++) {
+                const dayBox = document.createElement('div');
+                dayBox.className = 'day-box';
+
+                const numSpan = document.createElement('span');
+                numSpan.className = 'day-num';
+                numSpan.textContent = i;
+
+                const valSpan = document.createElement('span');
+                valSpan.className = 'day-val';
+
+                if (dailyStats[i] !== undefined) {
+                    const totalPnl = dailyStats[i];
+                    if (totalPnl > 0) {
+                        dayBox.classList.add('profit');
+                        valSpan.textContent = `+$${totalPnl.toFixed(2)}`;
+                    } else if (totalPnl < 0) {
+                        dayBox.classList.add('loss');
+                        valSpan.textContent = `-$${Math.abs(totalPnl).toFixed(2)}`;
+                    } else {
+                        valSpan.textContent = '-';
+                    }
+                } else {
+                    valSpan.textContent = '-';
+                }
+
+                dayBox.appendChild(numSpan);
+                dayBox.appendChild(valSpan);
+                calendarEl.appendChild(dayBox);
+            }
+        }
+
+        // Renderizar los logs en las tarjetas estilo comando de la terminal
+        function renderTerminalLogs() {
+            const container = document.getElementById('recentLogsContainer');
+            const historyContainer = document.getElementById('fullHistoryContainer');
+            container.innerHTML = '';
+            historyContainer.innerHTML = '';
+
+            tradeDatabase.forEach(trade => {
+                const card = document.createElement('div');
+                card.className = `log-card ${trade.type.toLowerCase()}`;
+
+                card.innerHTML = `
+                    <div class="log-left">
+                        <span class="asset-title">${trade.asset}</span>
+                        <span style="color: rgba(255,255,255,0.4); font-size:10px;">${trade.date} • ${trade.session}</span>
+                        <span class="strategy-tag">${trade.strategy}</span>
+                    </div>
+                    <div class="log-right">
+                        <span class="pnl-value ${trade.pnl >= 0 ? 'plus' : 'minus'}">
+                            ${trade.pnl >= 0 ? '+$' : '-$'}${Math.abs(trade.pnl).toFixed(2)}
+                        </span>
+                        <span style="font-size:9px; color:${trade.type === 'BUY' ? '#00ff66' : '#ff3366'};">${trade.type}</span>
+                    </div>
+                `;
+
+                // Clonar para el panel de historial completo y el del dashboard principal
+                container.appendChild(card.cloneNode(true));
+                historyContainer.appendChild(card);
+            });
+        }
+
+        // Dibujar el gráfico de dona nativo usando HTML5 Canvas (75% Win Rate estático)
+        function drawCyberChart() {
+            const canvas = document.getElementById('winLossChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Círculo de fondo (Pérdidas - Rojo)
+            ctx.beginPath();
+            ctx.arc(50, 50, 40, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ff3366';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            // Arco superior (Ganancias - Cian Eléctrico - 75%)
+            ctx.beginPath();
+            ctx.arc(50, 50, 40, -Math.PI / 2, (2 * Math.PI * 0.75) - Math.PI / 2);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+        }
+
+        // Inicializar todos los procesos del ecosistema al cargar la app
+        window.onload = function() {
+            renderCyberCalendar();
+            renderTerminalLogs();
+            drawCyberChart();
+        };
+    </script>
+</body>
+</html>
