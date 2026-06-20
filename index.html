@@ -916,9 +916,9 @@
                 
                 if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-                const formattedDay = String(d).padStart(2, '0') + '/' + 
-                                     String(month + 1).padStart(2, '0') + '/' + 
-                                     year;
+                // PEGA ESTO EN SU LUGAR:
+const formattedDay = `${d}/${month + 1}/${year}`;
+                
 
                 const dayBox = document.createElement('div');
                 dayBox.style.borderRadius = '6px';
